@@ -1,0 +1,126 @@
+---
+title: "PSTAT126 Homework3"
+author: "Yanjie Qi"
+date: "2019/8/26"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## 1.
+
+## (q)
+Loading the required data set and print some observations for the dataset prostate:
+```{r}
+library(faraway)
+data(prostate)
+attach(prostate)
+head(prostate)
+```
+estimate the regression using lm():
+```{r}
+m.fit<-lm(lpsa~lcavol,data=prostate)
+```
+print summary:
+```{r}
+summary(m.fit)
+```
+produce an ANOVA table:
+```{r}
+anova(m.fit)
+```
+
+## (b)
+since The coeffient of determination--R-squared = 1-sse/ssto = 1-58.915/(69.003+58.915) = 0.5394.
+The coefficient of determination represents the variability in lpsa that is explained by the model.That is 53.94% of variability in lpsa that is explained by the model;the remaining is 100%-53.94%=46.06%. Therefore, 46.06% of variability in lpsa is left unexplained by the regression model.
+
+## 2.
+
+Loading the data set baeskel from the alr4 package:
+```{r}
+library(alr4)
+data(baeskel)
+attach(baeskel)
+```
+
+## (q)
+construct linear model:
+```{r}
+mod = lm(Tension~Sulfur, data = baeskel)
+```
+Residuals vs. Fitted Plot:
+```{r}
+plot(mod, which = 1)
+```
+
+Scale-Location:
+```{r}
+plot(mod, which = 3)
+```
+
+QQ-Plot:
+```{r}
+plot(mod, which = 2)
+```
+
+Conclusion: From Risidual vs. Fitted Plot, we could see a parabola, a distinctive pattern which means it is not a standard simple linear model; From QQ-plot, we could see its non-normality due to the graph which is a little bit right-skewed to the residuals.
+
+## (b)
+fit these two transformations and plot the regression fits along with the part a)
+```{r}
+invTranPlot(Tension~Sulfur, lambda = c(1,0,-1), optimal = F)
+```
+
+## (c)
+```{r}
+mod2 = lm(Tension~log(Sulfur))
+plot(Tension~log(Sulfur))
+abline(mod2)
+```
+```{r}
+bc = boxCox(mod2)
+```
+```{r}
+lambda.opt = bc$x[which.max(bc$y)]
+lambda.opt
+```
+From part b and c, we can see that lambda = 1 and lambda = 0.7474747 is within the confidence interval, so we shouldn't transform the variable.
+
+## 3.
+
+## (a)
+We have already had the alr4 package loaded
+therefore, plot the scatterplot matrix:
+```{r}
+scatterplotMatrix(~fertility+log(ppgdp)+pctUrban,data=UN11)
+```
+
+We could moment from above that:
+Fertility and log(ppgdp) has a negative correlation;
+Fertility and pctUrban has a negative correlation;
+log(ppgdp) and pctUrban has a positive correlation.
+
+## (b)
+construct OLS regression:
+```{r}
+ols.fit=lm(fertility~log(ppgdp)+pctUrban,data=UN11)
+ols.fit1=lm(fertility~log(ppgdp),data=UN11) 
+ols.fit2=lm(fertility~pctUrban,data=UN11)
+```
+Obtain the coefficients and p-values:
+```{r}
+summary(ols.fit1)
+summary(ols.fit2)
+```
+From the summaries, we can see that the coefficients are both significantly different from zero at any conventional level of significance.
+
+## (c)
+Obtain the added-variable plots:
+```{r}
+avPlots(ols.fit)
+```
+From above, we can say that log(ppgdp) is useful as it shows a steep slope while pctUrban, which is not useful, is neutral to fertility.
