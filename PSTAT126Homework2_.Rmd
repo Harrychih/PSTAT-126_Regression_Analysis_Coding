@@ -1,0 +1,200 @@
+---
+title: "PSTAT126_Homework2"
+author: "Yanjie Qi"
+date: "2019/8/19"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.
+## (a) 
+Predictor here is ppgdp and response is fertility.
+
+## (b)
+load alr4 package:
+```{r}
+library(alr4)
+data(UN11)
+attach(UN11)
+```
+create two variables from data UN11:
+```{r}
+fertility=UN11$fertility
+ppgdp=UN11$ppgdp  
+```
+draw scattle plot and the linear model:
+```{r}
+plot(x=ppgdp,y=fertility)
+abline(lm(fertility~ppgdp))
+summary(lm(fertility~ppgdp))
+```
+According to the graph above, The trend is not linear.
+
+## (c)
+draw scattle plot and the linear model by using natural log of the variables:
+```{r}
+plot(x=log(ppgdp),y=log(fertility))
+abline(lm(log(fertility)~log(ppgdp)))
+summary(lm(log(fertility)~log(ppgdp)))
+```
+The dependence of response variable (fertility) on predictor (ppgdp) is clearly shown on the log model. Therefore, simple linear regression model is plausible for summary of this graph.
+
+## 2.
+load faraway Packages:
+```{r}
+library(faraway)
+names(prostate)
+```
+
+## a) 
+draw a scatter plot:
+```{r}
+plot(prostate$lcavol,prostate$lpsa,xlab="lcavol",ylab="lpsa",main="lpsa vs lcavol")
+```
+
+We can see that there is an overall positive linear relationship between lspa and lcavol; simple linear regression model seems reasonable.
+
+## b)
+access data lpsa and lcavol:
+```{r}
+y<-prostate$lpsa
+x<-prostate$lcavol
+```
+sample means:
+```{r}
+xbar<-mean(x)
+ybar<-mean(y)
+```
+sum of sqaures:
+```{r}
+Sxx<-sum((x-xbar)^2)
+Syy<-sum((y-ybar)^2)
+Sxy<-sum((x-xbar)*(y-ybar))
+```
+estimate the value of slope:
+```{r}
+beta1hat<-Sxy/Sxx
+```
+estimate the value of intercept:
+```{r}
+beta0hat<-ybar-beta1hat*xbar
+```
+Displaying values:
+```{r}
+sprintf('The Value of xbar is %.4f',xbar)
+sprintf('The Value of ybar is %.4f',ybar)
+sprintf('The Value of Sxx is %.4f', Sxx)
+sprintf('The Value of Syy is %.4f', Syy)
+sprintf('The Value of Sxy is %.4f', Sxy)
+sprintf('The estimated value of the beta0 is %.4f',beta0hat)
+sprintf('The estimated value of the beta1 is %.4f',beta1hat)
+sprintf('The estimated regression line is %.4f+%.4fx',beta0hat,beta1hat)
+```
+calculate the fitted values:
+```{r}
+yhat<-beta0hat+beta1hat*x
+```
+draw the fitted line on to the plot from part a):
+```{r}
+plot(x,y,xlab="lcavol",ylab="lpsa",main="lpsa vs lcavol")
+lines(sort(x),yhat[order(x)],col="blue")
+```
+
+## c)
+get the number of observations:
+```{r}
+n<-length(x)
+```
+get the sum of square error:
+```{r}
+sse<-Syy-beta1hat*Sxy
+```
+get mean square error, which is the estimate of sigma^2:
+```{r}
+mse<-sse/(n-2)
+```
+estimates of stamdard errors:
+```{r}
+sb1<-sqrt(mse/Sxx)
+sb0<-sqrt(mse*sum(x^2)/(n*Sxx))
+sprintf('The estimated value of sigma^2 %.4f',mse)
+sprintf('The standard error of beta1 is %.4f',sb1)
+sprintf('The standard error of beta0 is %.4f',sb0)
+```
+get the covariance:
+```{r}
+cov<--mse*xbar/Sxx
+sprintf('The estimated covariance between beta0&beta1 is %.4f',cov)
+```
+t-tests for the null hypotheses beta0 = 0:
+```{r}
+tb0<-beta0hat/sb0
+```
+p-value of beta0 = P(T>tb0)+P(T<-tb0):
+```{r}
+pb0<-pt(abs(tb0),df=n-2,lower.tail=FALSE)+ pt(-abs(tb0),df=n-2,lower.tail=TRUE)
+sprintf('The test statistics to test beta0=0 is %.4f, the p-value is %.4f',tb0,pb0)
+```
+t-tests for the null hypotheses beta1 = 0:
+```{r}
+tb1<-beta1hat/sb1
+```
+p-value of beta1 = P(T>tb1)+P(T<-tb1):
+```{r}
+pb1<-pt(abs(tb1),df=n-2,lower.tail=FALSE)+ pt(-abs(tb1),df=n-2,lower.tail=TRUE)
+sprintf('The test statistics to test beta1=0 is %.4f, the p-value is %.4f',tb1,pb1)
+```
+
+## 3.
+## a)
+Loan the data set:
+```{r}
+data(ftcollinstemp)
+attach(ftcollinstemp)
+```
+draw a scattle plot and the linear model:
+```{r}
+plot(x=fall,y=winter)
+abline(lm(winter~fall))
+```
+## b)
+```{r}
+summary(lm(winter~fall))
+```
+According to Summary, we get p-value is is 0.0428 which is larger than 0.01; therefore, we accept the null hypothesis H0 that the slope is 0 when alpha = 0.01.
+
+## c)
+```{r}
+PercofVar<-summary(lm(winter~fall))$r.squared
+PercofVar
+```
+We could draw the conclusion from above that the percentage of the variability in winter is explained by fall is around 3.7%.
+
+## 4.
+## a)
+Loan the data set:
+```{r}
+data(Heights)
+attach(Heights)
+```
+constructe the linear model:
+```{r}
+mod <- lm(dheight~mheight)
+summary(mod)
+```
+Given by summary, we first have Intercept 29.91744 and slope 0.54175; Therefore dheight = 29.91744 + 0.54175 * mheight. As shown in the summary above, the standard Error of dheight and mheight is 1.62247 and 0.02596, the coefficient of determination is 0.2408, and the estimate of variance is 2.266^2=5.136167.From the coefficient of determination, 24.08% of variance in dheight is explained by mheight.
+
+## b)
+```{r}
+confint(mod, 'mheight', level=0.90)
+```
+a 90% confidence interval for β1 is (0.4990166, 0.5844774)
+
+## c)
+```{r}
+predict(mod, data.frame(mheight=61), interval="prediction",level=.99)
+```
+From above, we get a 99% confidence interval for daughters whose mother is 61 inches tall is (57.11531, 68.8127)
