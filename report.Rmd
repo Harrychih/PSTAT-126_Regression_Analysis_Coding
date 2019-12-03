@@ -1,0 +1,335 @@
+---
+fontsize: 11pt
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+\newpage
+
+# Abstract {-}
+
+Through this project, we are intended to discover environmental factors that are associated with burned area of forest using a dataset from UCI machine learning repository. Linear regression was employed as the statistical method, and the best fitted model was selected using a combination of forward selection, backward selection, and partial F-test. The final model was diagnosed and the associations between finally selected covariates and response were analysed, and suggestions on forest preservation were given based on the analysis results.
+
+# Introduction 
+## Problem and Motivation
+
+One major environmental concern is the severity of forest fires, which affects forest preservation, creates economical and ecological damage and causes human suffering. Such phenomenon is due to multiple causes such as human negligence and lightnings. Actions can be taken to control this disaster, prevending each year millions of forest hectares destroyed all around the world. In this study, we are intended to discover the most influential factors that cause larger forest burned, thus advise govenor to take advantage of this result.
+
+## Data
+
+This study will consider forest fire data from the Montesinho natural park, from the Tras-os-Montes northeast region of Portuga. In the dataset, there were n=517 instances, with 13 variables:
+
+* X - x-axis spatial coordinate within the Montesinho park map: 1 to 9
+* Y - y-axis spatial coordinate within the Montesinho park map: 2 to 9
+* month - month of the year: 'jan' to 'dec'
+* day - day of the week: 'mon' to 'sun'
+* FFMC - FFMC index from the FWI system: 18.7 to 96.20
+* DMC - DMC index from the FWI system: 1.1 to 291.3
+* DC - DC index from the FWI system: 7.9 to 860.6
+* ISI - ISI index from the FWI system: 0.0 to 56.10
+* temp - temperature in Celsius degrees: 2.2 to 33.30
+* RH - relative humidity in %: 15.0 to 100
+* wind - wind speed in km/h: 0.40 to 9.40
+* rain - outside rain in mm/m2 : 0.0 to 6.4
+* area - the burned area of the forest (in ha): 0.00 to 1090.84
+
+Data can be retrieved from UCI machine learning repository: https://archive.ics.uci.edu/ml/datasets/Forest+Fires
+
+## Questions of Interest
+
+Without using geographic features, which are the spatial coordinates of the instances, we want to find the the factors that are statistically associated with the burned area of the forest, either positively, or negatively. By interpreting the estimation, finally we want to come up with suggestions for fast control of forest fire to minimize the loss.
+
+# Methods
+
+Before fitting any linear regression models, we need to remove the outliers in the response and then we will perform a power transformation on the continuous variables, both predictors and response. Besides, the distributions of continuous variables and response by categorical variable, month, will be studied. 
+
+When fitting the linear regression models, we first include all potential covariates in the model, and then elimilate variables that have a multicolinearity problems (i.e. high variance inflation factor). Doing this will provide us with the full model. Next we will choose our base model only including temperature as the predictor. Forward selection and backward selection will be both performed using AIC, and the result will be compared using partial F-test to get our final model. Lastly, diagnostic check will be performed on the final model.
+
+# Results
+
+```{r, echo=FALSE, message=FALSE}
+library(MASS)
+library(car)
+library(alr4)
+fire <- read.csv("/Users/will/Desktop/PSTAT 126/forestfires.csv", header = T)
+```
+
+## Exploratory Data Analysis
+
+### Outcome Outliers
+
+Before transforming the predicors and response, we removed the outliers in the response whose burned area is greater than 200 ha. And the distribution looks better:
+
+```{r, echo=FALSE,fig.height=4.5,fig.width=10}
+par(mfrow=c(1,2))
+hist(fire$area, main = "histogram of the outcome", xlab = "Area") # histogram of the outcome
+fire <- fire[fire$area <= 200,]
+hist(fire$area, main = "histogram of the outcome without outliers", xlab = "Area") 
+par(mfrow=c(1,1))
+```
+
+### Predictor Transformation
+
+Before considering transformations for the response area, we will choose transformations for the continuous predictors. We can use a multivariate version of the Box-Cox method which will try to choose power transformations so that the predictors have approximately a multivariate normal distribution. 
+
+```{r, echo=FALSE, results='hide'}
+# Transforming Predictors
+fire.pt = powerTransform(cbind(temp,RH,wind, DMC, DC, ISI+1) ~ 1, fire)
+summary(fire.pt)
+fire_trsf <- with(fire, data.frame(area, temp, log(RH), wind, rain, FFMC, log(DMC), DC, log(ISI+1)))
+```
+
+Seeing from the results (in Appendix), we should tranform variables RH by taking natural logarithm, as the $\lambda=0$. In addition, we were supposed to power transform DMC and ISI by 0.33, but instead we take log transformation as the result is easier to interpret.
+
+### Outcome Transformation
+
+Once the predictors are already transformed, we took a look at the distribution of the response, area, and we notice it is quite right skewed. Then we used the ordinary Box-Cox transformation for area using the already transformed predictors.
+
+```{r, echo=FALSE,results='hide',fig.show='hide'}
+# Transforming the outcome
+fire.lm = lm(area+1~., data = fire_trsf)
+bc <- boxCox(fire.lm)
+bc$x[which.max(bc$y)]
+```
+
+As shown in Appendix 2, the best transformation then is $\lambda=-0.55$. However, the log transformation is easier to interpret and is thus preferable if the fit is okay.
+
+By taking log transformation for $area+1$ (A simple solution for variables that can be 0 is to add a small constant before transforming), the histogram of the response looks better (much less right-screwed):
+
+```{r, echo=FALSE,fig.height=4,fig.width=10}
+par(mfrow=c(1,2))
+hist(fire$area, main = "histogram of the outcome", xlab = "Area") # histogram of the outcome
+hist(log(fire$area+1), main = "histogram of the log outcome", xlab = "log(Area+1)") # histogram of the log outcome
+par(mfrow=c(1,1))
+```
+
+However, as there are many zero's in the response area, the distribution looks right skewed while the non-zero data looks normally distributed.
+
+### Categorical Variable
+
+There are 12 numeric variables and 1 categorical variable, let's take a look at the distribution of transformed area by different month:
+
+```{r, echo=FALSE, fig.width=10}
+boxplot(log(fire$area+1) ~ fire$month, xlab = "Month", ylab = "log(Area (ha) + 1)")
+```
+
+Apparently, the distributions of area are different by month, especially December has a higher IQR than other months, which may raise our concern in the later analysis that during December the burned area can be larger.
+
+## Regression Analysis
+
+First of all, we considered the full model that includes all covariates that can be useful in the prediction:
+
+$$
+log(area+1) \sim temp + log(RH) + wind + rain + FFMC + log(DMC) + DC + log(ISI+1) + month
+$$
+
+On the other hand, we can argue that the response and log(area) will be positively correlated with the temperature, so we will only consider models including this predictor as our smallest model:
+
+$$
+log(area+1) \sim temp
+$$
+
+### Multicollinearity
+
+Before we proceed to build linear models, we need to check for multicollinearity among the covariates. The variables in this dataset can be correlated as FFMC, DMC, DC, and ISI were computed based on temp, RH, wind, and rain, referring to https://www.nwcg.gov/publications/pms437/cffdrs/fire-weather-index-system.
+
+```{r, echo=FALSE, results='hide'}
+full_mod <- lm(log(area+1) ~ temp + log(RH) + wind + rain + FFMC + log(DMC) + DC + log(ISI+1) + month, data = fire)
+vif(full_mod) # remove DC because of high vif
+f = ~ temp + log(RH) + wind + rain + FFMC + log(DMC) + log(ISI+1) + month
+```
+
+As variable DC has a really large $GVIF^{(\frac{1}{2\times Df})}$ of 4.965 (see Appendix), we considered to exclude it from the full model. Thus, our full model becomes:
+
+$$
+log(area+1) \sim temp + log(RH) + wind + rain + FFMC + log(DMC) + log(ISI+1) + month
+$$
+
+### Forward Model Selection
+
+```{r, echo=FALSE,results='hide'}
+# The base model
+m0 = lm(log(area+1) ~ temp, fire)
+# Forward
+m.forward = step(m0, f, direction = 'forward') # Uses AIC by default
+```
+
+Beginning with the smallest model, the forward selection procedure will add variables one at a time until the chosen information criterion cannot be decreased anymore. Using AIC (by R default), we got our model as (see Appendix 2):
+
+$$
+log(area+1) = \beta_0 + \beta_1 temp + \beta_2 wind + \beta_{Jan} monthJan + \beta_{Feb} monthFeb + ...
++ \beta_{Dec} monthDec
+$$
+
+### Backward Model Selection
+
+```{r, echo=FALSE,results='hide'}
+# full model
+m1 = update(m0, f) 
+# Backward
+m.backward = step(m1, scope = c(lower = ~ temp), direction = 'backward')
+```
+
+Beginning with the largest model, we remove one at a time until the information criterion cannot be decreased. Backward selection yields larger models than forward, and we had the same model as in the forward selection model (see Appendix 2)
+
+Therefore, we will use this model as our preliminary model.
+
+### Partial F-test
+
+```{r, echo=FALSE, results='hide'}
+summary(lm(log(area+1) ~ temp + wind + month, data=fire))
+```
+
+Seeing from the summary table of our preliminary model (see Appendix 2), we notice that the p-value for wind is 0.1156, which means this predictor is not statistically significant. So, now we are using partial F-test to test if the reduced model without this covariate is as good as our preliminary model, and the null hypothsis and the alternative hypothesis for this test is:
+
+$$H_0: \beta_2=0$$
+$$H_a: \beta_2\neq0$$
+
+```{r, echo=FALSE,results='hide'}
+anova(lm(log(area+1) ~ temp + month, data = fire), 
+      lm(log(area+1) ~ temp + wind + month, data = fire))
+```
+
+Since the test statistic is F=2.484 and p-value for the partial F test is 0.1156, we don't have evidence to reject the null hypothesis. Thus, the reduced model is as good as the preliminary model, and the reduced model is preferred as it is simpler. So, we will exclude wind from the our model.
+
+Therefore, our final model is:
+
+$$
+log(area+1) = \beta_0 + \beta_1 temp + \beta_{Jan} monthJan + \beta_{Feb} monthFeb + ... + \beta_{Dec} monthDec
+$$
+
+```{r, echo=FALSE}
+final_mod <- lm(log(area+1)~temp + month, data=fire) 
+```
+
+### Diagnostic Check
+
+```{r, echo=FALSE, results='hide',warning=FALSE,fig.show='hide'}
+par(mfrow=c(1,2))
+plot(final_mod,1)
+plot(final_mod,2)
+par(mfrow=c(1,1))
+```
+
+By looking at the residual plot and normal QQ plot (see Appendix 2), we found the residuals were appoximately normally distributed with constant variance, while there was left tail in the QQ plot, which might be due to the right skewed distribution of $log(area + 1)$. Overall, the fit looks reasonable.
+
+## Interpretation
+
+Seeing from the summary table of the final model in Appendix 2, we have a esmatimate for temp of $\beta_{temp} = 0.02501$ with standard error 0.01361, and p-value 0.06663. This means the effect of temperature is positive and moderately significant, which means 1 degree higher the temperature is, $e^{0.02501} = 1.025$ ha more forest will be burned on average, with $95\%$ confidence interval of:
+
+```{r, echo=FALSE}
+exp(confint(final_mod, 'temp', level=0.95))
+```
+
+Besides, the parameter of December is statistically significant (p=0.00752), with $\beta_{Dec} = 1.67060$, which means in December there will be $e^{1.67060} = 5.315$ ha more forest burned on average, with $95\%$ confidence interval of:
+
+```{r, echo=FALSE}
+exp(confint(final_mod, 'monthdec', level=0.95))
+```
+
+# Conclusion
+
+Through the analysis, we found two significant factors that are associated with the area of forest burned, temperature and month. Unsurprisingly, the temperature is positively correlated with the burned area, and every 1 degree rising causes 1.025 ha more forest burned on average. In addition, during December there are 5.315 ha more forest burned than other months on average. 
+
+This result suggests us that global warming can be a main reason more forests being burned, and preventing global warming can help with forest preservation. On the other hand, governor should pay more attention and take actions such as increasing the number of forest rangers and fire fighers near foreset during the winter time, especially December.
+
+
+\newpage
+
+# Appendix 1: R code {-}
+
+```{r, eval=FALSE}
+library(MASS)
+library(car)
+library(alr4)
+fire <- read.csv("/Users/will/Desktop/PSTAT 126/forestfires.csv", header = T)
+
+# remove the outliers in the response
+par(mfrow=c(1,2))
+hist(fire$area, main = "histogram of the outcome", xlab = "Area") # histogram of the outcome
+fire <- fire[fire$area <= 200,]
+hist(fire$area, main = "histogram of the outcome without outliers", xlab = "Area") 
+par(mfrow=c(1,1))
+
+# Transforming Predictors
+fire.pt = powerTransform(cbind(temp,RH,wind, DMC, DC, ISI+1) ~ 1, fire)
+summary(fire.pt)
+fire_trsf <- with(fire, 
+                  data.frame(area, temp, log(RH), wind, rain, FFMC, log(DMC), DC, log(ISI+1)))
+
+# Transforming the outcome
+fire.lm = lm(area+1~., data = fire_trsf)
+bc <- boxCox(fire.lm)
+bc$x[which.max(bc$y)]
+
+par(mfrow=c(1,2))
+# histogram of the outcome
+hist(fire$area, main = "histogram of the outcome", xlab = "Area") 
+# histogram of the log outcome
+hist(log(fire$area+1), main = "histogram of the log outcome", xlab = "log(Area+1)") 
+par(mfrow=c(1,1))
+
+boxplot(log(fire$area+1) ~ fire$month, xlab = "Month", ylab = "log(Area (ha) + 1)")
+
+full_mod <- lm(log(area+1) ~ temp + log(RH) + wind + rain + FFMC + log(DMC) + DC + log(ISI+1) + month, 
+               data = fire)
+vif(full_mod) # remove DC because of high vif
+f = ~ temp + log(RH) + wind + rain + FFMC + log(DMC) + log(ISI+1) + month
+
+# The base model
+m0 = lm(log(area+1) ~ temp, fire)
+# Forward
+m.forward = step(m0, f, direction = 'forward') # Uses AIC by default
+
+m1 = update(m0, f) 
+# Backward
+m.backward = step(m1, scope = c(lower = ~ temp), direction = 'backward')
+
+summary(lm(log(area+1) ~ temp + wind + month, data=fire))
+
+# partial F-test
+anova(lm(log(area+1) ~ temp + month, data = fire), 
+      lm(log(area+1) ~ temp + wind + month, data = fire))
+
+final_mod <- lm(log(area+1)~temp + month, data=fire) 
+# Diagnostic Check
+par(mfrow=c(1,2))
+plot(final_mod,1)
+plot(final_mod,2)
+par(mfrow=c(1,1))
+
+summary(final_mod)
+
+# confidence interval for parameters
+exp(confint(final_mod, 'temp', level=0.95))
+exp(confint(final_mod, 'monthdec', level=0.95))
+```
+
+# Appendix 2: Plots and Outputs {-}
+
+```{r}
+# overview of the dataset
+str(fire)
+# correlation between variables
+pairs(fire[c("area", "temp", "RH", "wind", "rain", "FFMC", "DMC", "DC", "ISI")])
+# correlation between trasnformed variables
+pairs(fire_trsf)
+# power transformation for predictors
+summary(fire.pt)
+# Transforming the outcome
+fire.lm = lm(area+1~., data = fire_trsf)
+bc <- boxCox(fire.lm)
+bc$x[which.max(bc$y)]
+# remove DC because of high vif
+vif(full_mod) 
+# summary table of the second last model
+summary(lm(log(area+1)~temp + wind + month, data=fire))
+# Diagnostic Check
+plot(final_mod,1)
+plot(final_mod,2)
+# summary of the final model
+summary(final_mod)
+```
