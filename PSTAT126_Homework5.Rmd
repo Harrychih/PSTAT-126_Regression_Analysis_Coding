@@ -1,0 +1,158 @@
+---
+title: "PSTAT126_Homework5"
+author: "Yanjie Qi"
+date: "2019/9/7"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.
+```{r}
+library(faraway)
+data(prostate)
+attach(prostate)
+```
+
+The log-transformed fiited model given is lpsa = 1.507 + 0.719lcavol; since lpsa and lcavol are all log-transformation, we could know that the estimated coefficient for lcavol means that if lcavol is changed by 1%, then the expected value of lpsa is changed by 100((1+0.01)^0.719-1)%, which is 100(1.01^0.719-1)%.
+
+
+## 2.
+## a).
+
+the meaning of the intercept is that the expected salary of a person, if not considering the sex,will be 24,697; And if the Sex coefficient is 1 that means a female person would earn 21,357 which got from (24,697 - 3340) and if male, then the income would be 24,697.
+
+## b).
+
+With the increase of years the college has established, the salary for many original employees are not only considered by their sexuality but also their employment time in the company to show their contribution; therefore, the whole salary pattern of the company changes with both sex and time being considered for employee's salary. 
+
+## 3.
+install the package:
+```{r}
+library("alr4")
+data(cakes)
+attach(cakes)
+```
+
+set up the terms for the quadratic and the linear model:
+```{r}
+X1_sq = (X1*X1)
+X2_sq = (X2*X2)
+X1_X2 = (X1*X2)
+mod_3 = lm(Y~X1+X2+X1_sq+X2_sq+X1_X2)
+```
+
+## a).
+
+Get the summary and anova table:
+```{r}
+summary(mod_3)
+anova(mod_3)
+```
+According to the table, the significance levels for the quadratic terms and the interaction are all less than 0.005.
+
+## b).
+
+Now get the summary adding block effect:
+```{r}
+mod_4 = lm(Y~X1+X2+X1_sq+X2_sq+X1_X2+block)
+```
+
+Get the summary and anova table for the model with block effect:
+```{r}
+summary(mod_4)
+anova(mod_4)
+```
+
+From the tables, we know the blcok variables is not significant.
+
+## 4.
+
+```{r}
+data("BGSall")
+attach(BGSall)
+```
+
+## a).
+
+Draw the scatterplot of HT18 versus HT9:
+```{r}
+with(subset(BGSall, Sex == "0"), plot(HT9,HT18,pch = 16))
+with(subset(BGSall, Sex == "1"), points(HT9,HT18,pch = 5))
+```
+
+From the plot, it seems that the increase in female height from age 9 to age 18 is less as compared with boys. For instance, a female with age 9 and height around 135 has height of 165 at age 18, but a male with age 9 and height around 135 has height in the range 175-180 at age 18.
+
+## b).
+
+To obtain the appropriate test, we have to use anova function to get the p-value of reduced model, which is without the interaction:
+```{r}
+m1 <- lm(HT18 ~ HT9 + factor(Sex), data = BGSall)
+m2 <- lm(HT18 ~ HT9*factor(Sex), data = BGSall)
+anova(m1,m2)
+```
+
+since the p-value is 0.08749, larger than the alpha 0.05, we could accept the null hypothesis that the coefficient for interaction is 0 at 5% confidence level. Therefore, there is sufficient evidence to conclude that the parallel regression model is better
+
+## c).
+
+set up the model with HT9 as one quantitative predictor and factor(Sex) as one binary predictor:
+```{r}
+summary(m1)
+```
+
+From table, we can see that The difference in the intercepts of the two groups (Sex = 0 and Sex = 1) is 11.69584. That is the estimated difference between males and females is 11.69584 with standard error of 0.59036.Degree of freedom of residual is 133.
+
+t-value for the test:
+```{r}
+abs(qt(0.05/2, 133))
+```
+
+Therefore, 95% confidence interval between males and females:
+(11.69584 - 1.98 * 0.59036, 11.69584 + 1.98 * 0.59036)
+which is (10.52693, 12.86475)
+
+## 5.
+
+```{r}
+library("faraway")
+data("infmort")
+names(infmort)
+head(infmort)
+```
+
+## a).
+
+Hypothesis Test:
+H0:beta1 = beta2 = beta12 = 0 versus H1: at lease one of betai not zero.
+
+set up the model:
+```{r}
+fit <- lm(log(mortality)~region+log(income)+log(income)*region, data = infmort)
+summary(fit)
+```
+
+From Summary, we could know that F is 24.29 on 7 and 93 DF and p-value is 2.2*10^(-16).
+Therefore, we reject the null hypothesis since p-value is smaller the alpha=0.05, and
+we can conclude that the fitted model is significant.
+
+## b).
+
+In the model above, beat2 = beta12 = 0 implies that region has no impact on the relationship between income and mortality, which means log(mortality) is independent of region and interaction between region and log(income).
+
+## c).
+
+From b), the new model could be:
+E(log(mortality)|income, region) = β0 + β1 log(income)
+
+```{r}
+n.mod <- lm(log(mortality)~log(income), data = infmort)
+o.mod <- lm(log(mortality)~log(income)+ region +log(income)*region, data = infmort)
+anova(n.mod, o.mod)
+```
+
+From Anova, we know the p-value is 1.31e-05, which is much smaller than alpha = 0.05. Therefore, we reject the null hypothesis that beta12 and beta2 are 0. There is sufficient evidence to conclude that region and interaction between region and log(income) are significant variable in determining the log(mortality) for given income and region.
